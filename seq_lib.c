@@ -12,9 +12,7 @@ struct abstractionClass {
 typedef struct abstractionClass abstractionClass_t;
 
 struct seq {
-	struct seq* zero;
-	struct seq* one;
-	struct seq* two;
+	struct seq* children[3];
 	abstractionClass_t* abCls;
 };
 
@@ -26,9 +24,9 @@ seq_t * seq_new(void) {
 		errno = ENOMEM;
 	}
 	else {
-		seq->zero = NULL;
-		seq->one = NULL;
-		seq->two = NULL;
+		for (int i = 0; i < 3; i++) {
+			seq->children[i] = NULL;
+		}
 		seq->abCls = malloc(sizeof(abstractionClass_t));
 		if (seq->abCls == NULL) {
 			errno = ENOMEM;
@@ -41,14 +39,10 @@ seq_t * seq_new(void) {
 
 void seq_delete(seq_t *p) {
 	if (p!= NULL) {
-		if (p->zero != NULL) {
-			seq_delete(p->zero);
-		}
-		if (p->one != NULL) {
-			seq_delete(p->one);
-		}
-		if (p->two != NULL) {
-			seq_delete(p->two);
+		for (int i = 0; i < 3; i++) {
+			if (p->children[i] != NULL) {
+				seq_delete(p->children[i]);
+			}
 		}
 		if (p->abCls->counter == 1) {
 			free(p->abCls);
@@ -60,58 +54,142 @@ void seq_delete(seq_t *p) {
 	}
 }
 
-int seq_add(seq_t *p, char const *s) {
-	seq_t* temp = p;
-	if (p == NULL || s == NULL) {
-		errno = EINVAL;
-		return -1;
+static int valid_seq(char const *s) {
+	if (s == NULL || strlen(s) == 0) {
+		return 0;
+	}
+	for (int i = 0; i < strlen(s); i++) {
+		int num = s[i] - '0';
+		if (num > 2 || num < 0) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static int valid_string(char const *s) {
+	if (s == NULL || strlen(s) == 0) {
+		return 0;
 	}
 	else {
-		int retVal = 0;
-		for (int i = 0; i < strlen(s); i++) {
-			int num = s[i] - '0';
-			switch (num) {
-				case 0:
-					if (temp->zero == NULL) {
-						temp->zero = seq_new();
-						retVal = 1;
-						if (temp->zero == NULL) {
-							errno = ENOMEM;
-							return -1;
-						}
-					}
-					temp = temp->zero;
-
-				case 1:
-					if (temp->one == NULL) {
-						temp->one = seq_new();
-						retVal = 1;
-						if (temp->one == NULL) {
-							errno = ENOMEM;
-							return -1;
-						}
-					}
-					temp = temp->one;
-
-				case 2:
-					if (temp->two == NULL) {
-						retVal = 1;
-						temp->two = seq_new();
-						if (temp->two == NULL) {
-							errno = ENOMEM;
-							return -1;
-						}
-					}
-					temp = temp->two;
-
-				default:
-					errno = EINVAL;
-					return -1;
-			}
-		}
-		return retVal;
+		return 1;
 	}
 }
 
+int seq_add(seq_t *p, char const *s) {
+	if (!valid_seq(s) || p == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+	seq_t *temp = p;
+	seq_t *firstCreated = NULL;
+	for (int i = 0; i < strlen(s); i++) {
+		int num = s[i] - '0';
+		if (num > 2 || num < 0) {
+			errno = EINVAL;
+			return -1;
+		}
+		if (temp->children[num] == NULL) {
+			temp->children[num] = seq_new();
+			if (temp->children[num] == NULL) {
+				errno = ENOMEM;
+				seq_delete(firstCreated);
+				return -1;
+			}
+			if (firstCreated == NULL) {
+				firstCreated = temp->children[num];
+			}
+		}
 
+		temp = temp->children[num];
+	}
+	if (firstCreated == NULL) {
+		return 0;
+	}
+	else {
+		return 1;
+	}
+}
 
+static seq_t *seq_find(seq_t *p, char const *s) {
+	seq_t *temp = p;
+	for (int i = 0; i < strlen(s); i++) {
+		int num = s[i] - '0';
+		temp = temp->children[num];
+		if (temp == NULL) {
+			return NULL;
+		}
+	}
+	return temp;
+}
+
+int seq_remove(seq_t *p, char const *s) {
+	if (!valid_seq(s) || p == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+	seq_t *temp = seq_find(p, s);
+	if (temp == NULL) {
+		return 0;
+	}
+	seq_delete(temp);
+	return 1;
+}
+
+int seq_valid(seq_t *p, char const *s) {
+	if (!valid_seq(s) || p == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+	seq_t *temp = seq_find(p, s);
+	if (temp == NULL) {
+		return 0;
+	}
+	else {
+		return 1;
+	}
+}
+
+int seq_set_name(seq_t *p, char const *s, char const *n) {
+	if (!valid_seq(s) || !valid_string(n) || p == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+	seq_t *temp = seq_find(p, s);
+	if (temp == NULL || (temp->abCls->name != NULL && 
+			!strcmp(n, temp->abCls->name))) {
+		return 0;
+	}
+
+	else {
+		strcpy(temp->abCls->name, n);
+		return 1;
+	}
+}
+
+char const *seq_get_name(seq_t *p, char const *s) {
+	if (!valid_seq(s) || p == NULL) {
+		errno = EINVAL;
+		return NULL;
+	}
+	seq_t *temp = seq_find(p, s);
+	if (temp == NULL || temp->abCls->name == NULL) {
+		errno = 0;
+		return NULL;
+	}
+	return temp->abCls->name;
+}
+/*
+int seq_equiv(seq_t *p, char const *s1, char const *s2) {
+	if (!valid_seq(s1) || !valid_seq(s2) || p == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+	seq_t *t1 = seq_find(p, s1);
+	seq_t *t2 = seq_find(p, s2);
+	if (t1 == NULL || t2 == NULL || t1->abCls == t2->abCls) {
+		return 0;
+	}
+
+	
+}*/
