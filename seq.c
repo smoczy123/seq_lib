@@ -33,6 +33,7 @@ seq_t * seq_new(void) {
 			return NULL;
 		}
 		seq->abCls->counter = 1;
+		seq->abCls->name = NULL;
 	}
 	return seq;
 }
@@ -45,6 +46,9 @@ void seq_delete(seq_t *p) {
 			}
 		}
 		if (p->abCls->counter == 1) {
+			if (p->abCls->name != NULL) {
+				free(p->abCls->name);
+			}
 			free(p->abCls);
 		}
 		else {
@@ -113,10 +117,10 @@ int seq_add(seq_t *p, char const *s) {
 	}
 }
 
-static seq_t *seq_find(seq_t *p, char const *s) {
+static seq_t *seq_find(seq_t *p, char const *s, int father) {
 	seq_t *temp = p;
 	int len = strlen(s);
-	for (int i = 0; i < len; i++) {
+	for (int i = 0; i < len - father; i++) {
 		int num = s[i] - '0';
 		temp = temp->children[num];
 		if (temp == NULL) {
@@ -131,11 +135,15 @@ int seq_remove(seq_t *p, char const *s) {
 		errno = EINVAL;
 		return -1;
 	}
-	seq_t *temp = seq_find(p, s);
-	if (temp == NULL) {
+	int len = strlen(s);
+	seq_t *father = seq_find(p, s, 1);
+	int num = s[len - 1] - '0';
+		
+	if (father == NULL || father->children[num] == NULL) {
 		return 0;
 	}
-	seq_delete(temp);
+	seq_delete(father->children[num]);
+	father->children[num] = NULL;
 	return 1;
 }
 
@@ -144,7 +152,7 @@ int seq_valid(seq_t *p, char const *s) {
 		errno = EINVAL;
 		return -1;
 	}
-	seq_t *temp = seq_find(p, s);
+	seq_t *temp = seq_find(p, s, 0);
 	if (temp == NULL) {
 		return 0;
 	}
@@ -158,13 +166,24 @@ int seq_set_name(seq_t *p, char const *s, char const *n) {
 		errno = EINVAL;
 		return -1;
 	}
-	seq_t *temp = seq_find(p, s);
+	seq_t *temp = seq_find(p, s, 0);
+
 	if (temp == NULL || (temp->abCls->name != NULL && 
 			!strcmp(n, temp->abCls->name))) {
 		return 0;
 	}
 
 	else {
+		if (temp->abCls->name == NULL) {
+			temp->abCls->name = malloc(sizeof(char) * (strlen(n) + 1));
+		}
+		else {
+			temp->abCls->name = realloc(temp->abCls->name, sizeof(char) * (strlen(n) + 1));
+		}
+		if (temp->abCls->name == NULL) {
+			errno = ENOMEM;
+			return -1;
+		}
 		strcpy(temp->abCls->name, n);
 		return 1;
 	}
@@ -175,7 +194,7 @@ char const *seq_get_name(seq_t *p, char const *s) {
 		errno = EINVAL;
 		return NULL;
 	}
-	seq_t *temp = seq_find(p, s);
+	seq_t *temp = seq_find(p, s, 0);
 	if (temp == NULL || temp->abCls->name == NULL) {
 		errno = 0;
 		return NULL;
@@ -201,8 +220,8 @@ int seq_equiv(seq_t *p, char const *s1, char const *s2) {
 		errno = EINVAL;
 		return -1;
 	}
-	seq_t *t1 = seq_find(p, s1);
-	seq_t *t2 = seq_find(p, s2);
+	seq_t *t1 = seq_find(p, s1, 0);
+	seq_t *t2 = seq_find(p, s2, 0);
 	if (t1 == NULL || t2 == NULL || t1->abCls == t2->abCls) {
 		return 0;
 	}
@@ -227,6 +246,7 @@ int seq_equiv(seq_t *p, char const *s1, char const *s2) {
 					return -1;
 				}
 				strcpy(newAbCls->name, name2);
+				free(name2);
 		} else if (name2 == NULL) {
 				newAbCls->name = malloc(sizeof(char) * (strlen(name1) + 1));
 				if (newAbCls->name == NULL) {
@@ -235,6 +255,7 @@ int seq_equiv(seq_t *p, char const *s1, char const *s2) {
 					return -1;
 				}
 				strcpy(newAbCls->name, name1);
+				free(name1);
 		} else {
 				newAbCls->name = malloc(sizeof(char) * (strlen(name1) + strlen(name2) + 1));
 				if (newAbCls->name == NULL) {
@@ -244,8 +265,12 @@ int seq_equiv(seq_t *p, char const *s1, char const *s2) {
 				}
 				strcpy(newAbCls->name, name1);
 				strcat(newAbCls->name, name2);
+				free(name1);
+				free(name2);
 		}
 	}
+	free(t1->abCls);
+	free(t2->abCls);
 	seq_merge(p, newAbCls, t1->abCls, t2->abCls);
 	return 1;
 }
