@@ -29,6 +29,7 @@ seq_t * seq_new(void) {
 		}
 		seq->abCls = malloc(sizeof(abClass_t));
 		if (seq->abCls == NULL) {
+			free(seq);
 			errno = ENOMEM;
 			return NULL;
 		}
@@ -88,6 +89,8 @@ int seq_add(seq_t *p, char const *s) {
 	}
 	seq_t *temp = p;
 	seq_t *firstCreated = NULL;
+	seq_t *father = NULL;
+	int father_num;
 	int len = strlen(s);
 	for (int i = 0; i < len; i++) {
 		int num = s[i] - '0';
@@ -100,10 +103,15 @@ int seq_add(seq_t *p, char const *s) {
 			if (temp->children[num] == NULL) {
 				errno = ENOMEM;
 				seq_delete(firstCreated);
+				if (father != NULL) {
+					father->children[father_num] = NULL;
+				}
 				return -1;
 			}
 			if (firstCreated == NULL) {
 				firstCreated = temp->children[num];
+				father = temp;
+				father_num = num;
 			}
 		}
 
@@ -174,16 +182,15 @@ int seq_set_name(seq_t *p, char const *s, char const *n) {
 	}
 
 	else {
-		if (temp->abCls->name == NULL) {
-			temp->abCls->name = malloc(sizeof(char) * (strlen(n) + 1));
-		}
-		else {
-			temp->abCls->name = realloc(temp->abCls->name, sizeof(char) * (strlen(n) + 1));
-		}
-		if (temp->abCls->name == NULL) {
+		char *temp_name =  malloc(sizeof(char) * (strlen(n) + 1));
+		if (temp_name == NULL) {
 			errno = ENOMEM;
 			return -1;
 		}
+		if (temp->abCls->name != NULL) {
+			free(temp->abCls->name);
+		}
+		temp->abCls->name = temp_name;
 		strcpy(temp->abCls->name, n);
 		return 1;
 	}
