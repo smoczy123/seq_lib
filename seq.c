@@ -288,8 +288,8 @@ int seq_set_name(seq_t *p, char const *s, char const *n) {
 	}
 }
 
-// daje wskaźnik na napis zawierający nazwę klasy abstrakcji,
-// do której należy podany ciąg
+// daje wskaźnik na napis zawierający nazwę 
+// klasy abstrakcji, do której należy podany ciąg
 
 char const *seq_get_name(seq_t *p, char const *s) {
 	if (!valid_seq(s) || p == NULL) {
