@@ -1,8 +1,4 @@
-CC = gcc
-CPPFLAGS =
-
-.PHONY: test clean
-
+.PHONY: clean
 seq.o: seq.c
 	gcc -c -Wall -Wextra -Wno-implicit-fallthrough -std=gnu17 -fPIC -O2 $^ 
 
@@ -19,4 +15,4 @@ test: seq_example.o libseq.so
 	gcc -L. -o $@ $< -lseq
 
 clean:
-	rm *.o *.so
+	rm *.o *.so test

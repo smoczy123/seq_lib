@@ -223,7 +223,8 @@ int seq_add(seq_t *p, char const *s) {
 	return (first_created != NULL);
 }
 
-// usuwa ze zbioru ciągów podany ciąg i wszystkie ciągi, których jest on prefiksem
+// usuwa ze zbioru ciągów podany ciąg i wszystkie ciągi,
+// których jest on prefiksem
 
 int seq_remove(seq_t *p, char const *s) {
 	if (!valid_seq(s) || p == NULL) {
@@ -308,7 +309,8 @@ char const *seq_get_name(seq_t *p, char const *s) {
 // do nowej, podanej klasy abstrakcji
 // DFS z pamięcią O(1)
 
-int seq_merge(seq_t *p, equi_cls_t *new_equi_cls, equi_cls_t *equi_cls1, equi_cls_t *equi_cls2) {
+int seq_merge(seq_t *p, equi_cls_t *new_equi_cls, equi_cls_t *equi_cls1,
+		equi_cls_t *equi_cls2) {
 	if (p == NULL) {
 		return 0;	
 	}
